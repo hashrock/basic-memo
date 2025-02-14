@@ -9,7 +9,7 @@ ApplicationWindow {
     visible: true
     width: 800
     height: 600
-    title: "シンプルテキストエディタ"
+    title: "Basic Memo"
 
     property string currentFile: tabView.children[tabBar.currentIndex] ? tabView.children[tabBar.currentIndex].filePath : ""
     property bool isModified: tabView.children[tabBar.currentIndex] ? tabView.children[tabBar.currentIndex].isModified : false
