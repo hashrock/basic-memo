@@ -5,7 +5,7 @@ project(basic-memo VERSION 0.1 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 17)
 
-find_package(Qt6 6.4 REQUIRED COMPONENTS Quick QuickControls2)
+find_package(Qt6 6.4 REQUIRED COMPONENTS Quick QuickControls2 Core)
 
 qt_standard_project_setup()
 
@@ -31,7 +31,7 @@ set_target_properties(appbasic-memo PROPERTIES
 )
 
 target_link_libraries(appbasic-memo
-    PRIVATE Qt6::Quick Qt6::QuickControls2
+    PRIVATE Qt6::Quick Qt6::QuickControls2 Qt6::Core
 )
 
 include(GNUInstallDirs)

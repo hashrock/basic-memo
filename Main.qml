@@ -9,15 +9,28 @@ ApplicationWindow {
     visible: true
     width: 800
     height: 600
-    title: "シンプルテキストエディタ"
+    title: "シンプルテキストエディタ" + (currentFile ? " - " + currentFile : "") + (isModified ? "*" : "")
 
     property string currentFile: ""
     property bool isModified: false
 
+    Connections {
+        target: backend
+        function onFileOpened(path, content) {
+            currentFile = path
+            textArea.text = content
+            isModified = false
+        }
+        function onFileSaved(path) {
+            currentFile = path
+            isModified = false
+        }
+    }
+
     FileDialog {
         id: openDialog
         title: "ファイルを開く"
-        nameFilters: ["テキストファイル (*.txt)"]
+        nameFilters: ["テキストファイル (*.txt)", "すべてのファイル (*)"]
         onAccepted: {
             backend.openFile(openDialog.file)
         }
@@ -26,7 +39,7 @@ ApplicationWindow {
     FileDialog {
         id: saveDialog
         title: "名前を付けて保存"
-        nameFilters: ["テキストファイル (*.txt)"]
+        nameFilters: ["テキストファイル (*.txt)", "すべてのファイル (*)"]
         fileMode: FileDialog.SaveFile
         onAccepted: {
             backend.saveFile(saveDialog.file, textArea.text)
@@ -106,9 +119,12 @@ ApplicationWindow {
 
             DropArea {
                 anchors.fill: parent
-                onDropped: {
-                    if (drop.hasUrls) {
-                        backend.openFile(drop.urls[0])
+                onEntered: function(drag) {
+                    drag.accepted = drag.hasUrls
+                }
+                onDropped: function(drag) {
+                    if (drag.hasUrls) {
+                        backend.openFile(drag.urls[0])
                     }
                 }
             }

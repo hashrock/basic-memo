@@ -4,6 +4,8 @@
 #include <QFile>
 #include <QUrl>
 #include <QDebug>
+#include <QTextStream>
+#include <QStringConverter>
 
 class Backend : public QObject
 {
@@ -16,12 +18,13 @@ public slots:
         QString path = fileUrl.toLocalFile();
         QFile file(path);
         
-        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        if (!file.open(QIODevice::ReadOnly)) {
             qDebug() << "ファイルを開けませんでした:" << path;
             return;
         }
 
         QTextStream in(&file);
+        in.setAutoDetectUnicode(true);
         QString content = in.readAll();
         file.close();
 
@@ -32,12 +35,13 @@ public slots:
         QString path = fileUrl.toLocalFile();
         QFile file(path);
         
-        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        if (!file.open(QIODevice::WriteOnly)) {
             qDebug() << "ファイルを保存できませんでした:" << path;
             return;
         }
 
         QTextStream out(&file);
+        out.setEncoding(QStringConverter::Utf8);
         out << content;
         file.close();
 
