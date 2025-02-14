@@ -15,22 +15,22 @@ ApplicationWindow {
     property bool isModified: tabView.children[tabBar.currentIndex] ? tabView.children[tabBar.currentIndex].isModified : false
 
     Shortcut {
-        sequence: StandardKey.New
+        sequences: [StandardKey.New]
         onActivated: createNewTab()
     }
 
     Shortcut {
-        sequence: "Ctrl+T"
+        sequences: ["Ctrl+T"]
         onActivated: createNewTab()
     }
 
     Shortcut {
-        sequence: StandardKey.Open
+        sequences: [StandardKey.Open]
         onActivated: openDialog.open()
     }
 
     Shortcut {
-        sequence: StandardKey.Save
+        sequences: [StandardKey.Save]
         onActivated: {
             let currentTab = tabView.children[tabBar.currentIndex]
             if (currentTab) {
@@ -44,21 +44,23 @@ ApplicationWindow {
     }
 
     Shortcut {
-        sequence: StandardKey.SaveAs
+        sequences: [StandardKey.SaveAs]
         onActivated: saveDialog.open()
     }
 
     Shortcut {
-        sequence: StandardKey.Close
+        sequences: [StandardKey.Close]
         onActivated: {
             if (tabBar.count > 1) {
                 closeCurrentTab()
+            } else {
+                Qt.quit()  // タブが1つの場合はアプリケーションを終了
             }
         }
     }
 
     Shortcut {
-        sequence: StandardKey.Quit
+        sequences: [StandardKey.Quit]
         onActivated: Qt.quit()
     }
 
