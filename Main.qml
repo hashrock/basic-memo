@@ -75,6 +75,7 @@ ApplicationWindow {
                 anchors.fill: parent
                 TextArea {
                     id: textArea
+                    font.pixelSize: 16
                     wrapMode: TextArea.Wrap
                     selectByMouse: true
                     persistentSelection: true
@@ -118,6 +119,7 @@ ApplicationWindow {
     Component {
         id: tabButtonComponent
         TabButton {
+            font.pixelSize: 16
             property string filePath: ""
             property bool isModified: false
             width: Math.min(200, implicitWidth)
