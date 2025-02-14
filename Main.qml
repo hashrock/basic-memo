@@ -14,12 +14,62 @@ ApplicationWindow {
     property string currentFile: tabView.children[tabBar.currentIndex] ? tabView.children[tabBar.currentIndex].filePath : ""
     property bool isModified: tabView.children[tabBar.currentIndex] ? tabView.children[tabBar.currentIndex].isModified : false
 
+    Shortcut {
+        sequence: StandardKey.New
+        onActivated: createNewTab()
+    }
+
+    Shortcut {
+        sequence: "Ctrl+T"
+        onActivated: createNewTab()
+    }
+
+    Shortcut {
+        sequence: StandardKey.Open
+        onActivated: openDialog.open()
+    }
+
+    Shortcut {
+        sequence: StandardKey.Save
+        onActivated: {
+            let currentTab = tabView.children[tabBar.currentIndex]
+            if (currentTab) {
+                if (currentTab.filePath === "") {
+                    saveDialog.open()
+                } else {
+                    backend.saveFile("file://" + currentTab.filePath, currentTab.text)
+                }
+            }
+        }
+    }
+
+    Shortcut {
+        sequence: StandardKey.SaveAs
+        onActivated: saveDialog.open()
+    }
+
+    Shortcut {
+        sequence: StandardKey.Close
+        onActivated: {
+            if (tabBar.count > 1) {
+                closeCurrentTab()
+            }
+        }
+    }
+
+    Shortcut {
+        sequence: StandardKey.Quit
+        onActivated: Qt.quit()
+    }
+
     Component {
         id: tabComponent
         Page {
+            id: tabPage
             property string filePath: ""
             property alias text: textArea.text
             property bool isModified: false
+            property bool isInitializing: true  // 初期化フラグを追加
 
             ScrollView {
                 anchors.fill: parent
@@ -28,7 +78,26 @@ ApplicationWindow {
                     wrapMode: TextArea.Wrap
                     selectByMouse: true
                     persistentSelection: true
-                    onTextChanged: isModified = true
+                    focus: true  // フォーカスを受け取れるようにする
+                    onTextChanged: {
+                        if (!tabPage.isInitializing) {  // 初期化中は変更フラグを立てない
+                            tabPage.isModified = true
+                            // タブボタンの状態も更新
+                            for (let i = 0; i < tabBar.count; i++) {
+                                if (tabView.children[i] === tabPage) {
+                                    let button = tabBar.itemAt(i)
+                                    if (button) {
+                                        button.isModified = true
+                                    }
+                                    break
+                                }
+                            }
+                        }
+                    }
+
+                    Component.onCompleted: {
+                        tabPage.isInitializing = false  // 初期化完了
+                    }
 
                     DropArea {
                         anchors.fill: parent
@@ -70,12 +139,54 @@ ApplicationWindow {
         
         // 新しいタブを作成
         let tab = tabComponent.createObject(tabView)
+        tab.isInitializing = true  // 初期化フラグを設定
         tab.filePath = filePath || ""
         tab.text = content || ""
         tab.isModified = false
+        tab.isInitializing = false  // 初期化完了
         
         // タブを選択
         tabBar.setCurrentIndex(tabBar.count - 1)
+
+        // 新しいタブのTextAreaにフォーカスを移動
+        let textArea = tab.children[0].children[0]  // ScrollView -> TextArea
+        if (textArea) {
+            textArea.forceActiveFocus()
+        }
+    }
+
+    MessageDialog {
+        id: saveConfirmDialog
+        title: "保存確認"
+        text: "変更を保存しますか？"
+        buttons: MessageDialog.Yes | MessageDialog.No | MessageDialog.Cancel
+
+        property var callback: null
+        property int tabIndexToClose: -1
+
+        onYesClicked: {
+            // Yesが押された場合
+            let currentTab = tabView.children[tabIndexToClose]
+            if (currentTab.filePath === "") {
+                saveDialog.callback = function() {
+                    if (callback) callback(true)
+                }
+                saveDialog.open()
+            } else {
+                backend.saveFile("file://" + currentTab.filePath, currentTab.text)
+                if (callback) callback(true)
+            }
+        }
+
+        onNoClicked: {
+            // Noが押された場合
+            if (callback) callback(true)
+        }
+
+        onRejected: {
+            // Cancelが押された場合
+            if (callback) callback(false)
+        }
     }
 
     function closeCurrentTab() {
@@ -87,8 +198,20 @@ ApplicationWindow {
         let currentTab = tabView.children[currentIndex]
         
         if (currentTab && currentTab.isModified) {
-            // TODO: 保存確認ダイアログを表示
+            saveConfirmDialog.tabIndexToClose = currentIndex
+            saveConfirmDialog.callback = function(shouldClose) {
+                if (shouldClose) {
+                    actuallyCloseTab(currentIndex)
+                }
+            }
+            saveConfirmDialog.open()
+        } else {
+            actuallyCloseTab(currentIndex)
         }
+    }
+
+    function actuallyCloseTab(index) {
+        let currentTab = tabView.children[index]
         
         // タブを削除
         if (currentTab) {
@@ -98,7 +221,7 @@ ApplicationWindow {
         // タブボタンを削除
         let buttons = []
         for (let i = 0; i < tabBar.count; i++) {
-            if (i !== currentIndex) {
+            if (i !== index) {
                 buttons.push(tabBar.itemAt(i))
             }
         }
@@ -113,10 +236,19 @@ ApplicationWindow {
         })
         
         // インデックスを調整
-        if (currentIndex > 0) {
-            tabBar.setCurrentIndex(currentIndex - 1)
+        if (index > 0) {
+            tabBar.setCurrentIndex(index - 1)
         } else if (tabBar.count > 0) {
             tabBar.setCurrentIndex(0)
+        }
+
+        // 新しくアクティブになったタブのTextAreaにフォーカスを移動
+        let newActiveTab = tabView.children[tabBar.currentIndex]
+        if (newActiveTab) {
+            let textArea = newActiveTab.children[0].children[0]  // ScrollView -> TextArea
+            if (textArea) {
+                textArea.forceActiveFocus()
+            }
         }
     }
 
@@ -168,6 +300,27 @@ ApplicationWindow {
             TabBar {
                 id: tabBar
                 Layout.fillWidth: true
+
+                // タブバーの空きスペースをダブルクリックで新規タブ
+                MouseArea {
+                    anchors.fill: parent
+                    enabled: true
+                    onDoubleClicked: {
+                        // クリックされた位置が既存のタブ上でない場合のみ新規タブを作成
+                        let clickedTab = false
+                        for (let i = 0; i < tabBar.count; i++) {
+                            let tab = tabBar.itemAt(i)
+                            if (tab && mouseX >= tab.x && mouseX <= tab.x + tab.width) {
+                                clickedTab = true
+                                break
+                            }
+                        }
+                        if (!clickedTab) {
+                            createNewTab()
+                        }
+                    }
+                    z: -1 // タブボタンの下に配置
+                }
             }
             Button {
                 id: newTabButton
@@ -184,6 +337,11 @@ ApplicationWindow {
             MenuItem {
                 text: "新規"
                 shortcut: StandardKey.New
+                onTriggered: createNewTab()
+            }
+            MenuItem {
+                text: "新規タブ"
+                shortcut: "Ctrl+T"
                 onTriggered: createNewTab()
             }
             MenuItem {
